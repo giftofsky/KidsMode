@@ -21,8 +21,8 @@ a family tool for a shared PC, not surveillance or a walled garden.
   restart or reboot does not refill the day.
 - **A friendly lock** when time is up, with a big touch-friendly keypad — a parent types the PIN,
   then chooses **Add 15 minutes** or **Quit Kids Mode**.
-- **Approved apps only.** Add them by name from the Start Menu — the same list Windows shows —
-  or point at an `.exe`. Store games like Math Kids or Coloring Book work too.
+- **Approved apps only.** Add them by name from the Start Menu — the same names and icons
+  Windows shows — or point at an `.exe`. Store games like Math Kids or Coloring Book work too.
 - **A parent way out**, always: a small **Parent** button (or a two-second hold on the time bar).
 - **Everything logged, nothing phoned home.** `kidsmode.log` records every launch and state
   change. There is no network, no telemetry, no account.
@@ -42,25 +42,29 @@ a family tool for a shared PC, not surveillance or a walled garden.
     </td>
   </tr>
   <tr>
-    <td colspan="2">
-      <img src="docs/images/startmenu.png" alt="Add apps by name from the Start Menu"><br>
+    <td width="50%">
+      <img src="docs/images/startmenu.png" alt="Add apps by name from the Start Menu, with icons"><br>
       <sub>Parents add apps by name — no file paths, no hunting through folders.</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/images/startmenu-games.png" alt="The same list filtered by the word game"><br>
+      <sub>Type <b>game</b> and the list shrinks to the games — Store games included.</sub>
     </td>
   </tr>
 </table>
 
 ## Get it
 
-Download **`KidsMode-Setup.exe`** from the [releases page](../../releases) — one offline file,
-about 45 MB, that includes everything it needs (no Qt or developer tools required). It installs
-for the current user only and asks for no administrator rights.
+Download **`KidsMode-Setup.exe`** from the [latest release](https://github.com/giftofsky/KidsMode/releases/latest)
+— one offline file, about 45 MB, that includes everything it needs (no Qt or developer tools
+required). It installs for the current user only and asks for no administrator rights.
 
 ## Set it up (about two minutes)
 
 1. **Log in as the child** and run Kids Mode. First launch asks for a 4-digit PIN, a daily
    limit, and at least one app.
-2. Press **Add from Start Menu…** and tick the apps and games your child may open. Store games
-   included.
+2. Press **Add from Start Menu…** and tick the apps and games your child may open — type
+   "game" to see just the games. Store games included.
 3. Add a shortcut to the child's Startup folder (`Win+R` → `shell:startup`) so Kids Mode opens
    on its own at sign-in. The setup installer can do this for you.
 4. To change the limit or apps later: press **Parent**, enter the PIN, choose **Settings…**.
