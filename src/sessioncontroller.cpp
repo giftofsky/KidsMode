@@ -417,8 +417,8 @@ void SessionController::onChildFinished()
     // A Store app (calc.exe, mspaint.exe) is a stub: it exits at once and the real window
     // belongs to another process. Wait for that window and take it over.
     // shortcut: only a window that appeared after the launch is adopted; if none shows up
-    // within 5 s the launcher comes back.
-    if (m_childWindow == 0 && m_childTimer.isValid() && m_childTimer.elapsed() < 5000) {
+    // within 10 s the launcher comes back. 10 s because Store games open slower than Calc.
+    if (m_childWindow == 0 && m_childTimer.isValid() && m_childTimer.elapsed() < 10000) {
         m_adopting = true;
         m_windowTries = 0;
         m_windowPoll.start();

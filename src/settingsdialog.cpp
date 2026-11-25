@@ -1,5 +1,6 @@
 #include "settingsdialog.h"
 
+#include <QApplication>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
@@ -16,6 +17,8 @@
 #include <QRegularExpressionValidator>
 #include <QSpinBox>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 #include "pin.h"
 
@@ -52,13 +55,16 @@ SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *pa
     m_apps->setMinimumHeight(150);
     appsLayout->addWidget(m_apps);
     auto *appButtons = new QHBoxLayout;
+    auto *addInstalled = new QPushButton(tr("Add from Start Menu..."), appsGroup);
     auto *add = new QPushButton(tr("Add app..."), appsGroup);
     auto *remove = new QPushButton(tr("Remove"), appsGroup);
+    appButtons->addWidget(addInstalled);
     appButtons->addWidget(add);
     appButtons->addWidget(remove);
     appButtons->addStretch();
     appsLayout->addLayout(appButtons);
     layout->addWidget(appsGroup, 1);
+    connect(addInstalled, &QPushButton::clicked, this, &SettingsDialog::addFromStartMenu);
     connect(add, &QPushButton::clicked, this, &SettingsDialog::addApp);
     connect(remove, &QPushButton::clicked, this, &SettingsDialog::removeApp);
 
@@ -116,6 +122,63 @@ void SettingsDialog::addApp()
     const QFileInfo info(path);
     m_policy.apps.append(AppTile{info.completeBaseName(), QDir::toNativeSeparators(path), {}});
     syncAppsToList();
+}
+
+void SettingsDialog::addFromStartMenu()
+{
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const QList<AppTile> found = installedApps();
+    QApplication::restoreOverrideCursor();
+    if (found.isEmpty()) {
+        QMessageBox::information(this, tr("Add from Start Menu"),
+                                 tr("Could not read the Start Menu."));
+        return;
+    }
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Add from Start Menu"));
+    dlg.resize(560, 500);
+    auto *dlgLayout = new QVBoxLayout(&dlg);
+    auto *search = new QLineEdit(&dlg);
+    search->setPlaceholderText(tr("Search, for example: math"));
+    auto *list = new QListWidget(&dlg);
+    for (int i = 0; i < found.size(); ++i) {
+        auto *item = new QListWidgetItem(found.at(i).name, list);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(Qt::Unchecked);
+        item->setData(Qt::UserRole, i);
+        item->setToolTip(found.at(i).args.isEmpty() ? found.at(i).exePath
+                                                    : found.at(i).exePath + QLatin1Char(' ') + found.at(i).args);
+    }
+    connect(search, &QLineEdit::textChanged, list, [list](const QString &text) {
+        for (int i = 0; i < list->count(); ++i)
+            list->item(i)->setHidden(!text.isEmpty()
+                                     && !list->item(i)->text().contains(text, Qt::CaseInsensitive));
+    });
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    dlgLayout->addWidget(search);
+    dlgLayout->addWidget(list, 1);
+    dlgLayout->addWidget(box);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    int added = 0;
+    for (int i = 0; i < list->count(); ++i) {
+        const QListWidgetItem *item = list->item(i);
+        if (item->checkState() != Qt::Checked)
+            continue;
+        const AppTile &tile = found.at(item->data(Qt::UserRole).toInt());
+        const bool exists = std::any_of(m_policy.apps.cbegin(), m_policy.apps.cend(),
+                                        [&](const AppTile &a) { return a.name == tile.name; });
+        if (!exists) {
+            m_policy.apps.append(tile);
+            ++added;
+        }
+    }
+    if (added)
+        syncAppsToList();
 }
 
 void SettingsDialog::removeApp()

@@ -21,6 +21,7 @@ protected:
 
 private:
     void addApp();
+    void addFromStartMenu();
     void removeApp();
     void syncAppsToList();
 

@@ -5,8 +5,12 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QProcess>
 #include <QSaveFile>
+#include <QSet>
 #include <QStandardPaths>
+
+#include <algorithm>
 
 QString Policy::defaultPath()
 {
@@ -86,4 +90,54 @@ bool Policy::save(const QString &path) const
         return false;
     file.write(QJsonDocument(toJson()).toJson(QJsonDocument::Indented));
     return file.commit();
+}
+
+QList<AppTile> parseStartMenuApps(const QString &output)
+{
+    QList<AppTile> apps;
+    QSet<QString> seen;
+    const QStringList lines = output.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    for (const QString &line : lines) {
+        const int tab = line.indexOf(QLatin1Char('\t'));
+        if (tab <= 0)
+            continue;
+        const QString name = QStringView(line).left(tab).trimmed().toString();
+        const QString id = QStringView(line).mid(tab + 1).trimmed().toString();
+        if (name.isEmpty() || id.isEmpty()
+            || name.contains(QLatin1String("Uninstall"), Qt::CaseInsensitive))
+            continue;
+
+        AppTile tile;
+        if (id.contains(QLatin1Char('!')))
+            tile = AppTile{name, QStringLiteral("C:\\Windows\\explorer.exe"),
+                           QStringLiteral("shell:AppsFolder\\%1").arg(id)};
+        else if (QDir::isAbsolutePath(id) && id.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive))
+            tile = AppTile{name, QDir::toNativeSeparators(id), {}};
+        else
+            continue; // ms-settings:, shell GUIDs, RegisteredApp names: nothing to launch
+
+        if (!seen.contains(id)) {
+            seen.insert(id);
+            apps.append(tile);
+        }
+    }
+
+    std::sort(apps.begin(), apps.end(), [](const AppTile &a, const AppTile &b) {
+        return a.name.compare(b.name, Qt::CaseInsensitive) < 0;
+    });
+    return apps;
+}
+
+QList<AppTile> installedApps()
+{
+    const QString powershell = qEnvironmentVariable("SystemRoot", QStringLiteral("C:\\Windows"))
+        + QStringLiteral("\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+    QProcess ps;
+    ps.start(powershell,
+             {QStringLiteral("-NoProfile"), QStringLiteral("-NonInteractive"), QStringLiteral("-Command"),
+              QStringLiteral("[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
+                             "Get-StartApps | ForEach-Object { $_.Name + [char]9 + $_.AppID }")});
+    if (!ps.waitForFinished(15000))
+        return {};
+    return parseStartMenuApps(QString::fromUtf8(ps.readAllStandardOutput()));
 }

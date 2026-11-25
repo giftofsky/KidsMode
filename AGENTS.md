@@ -143,7 +143,10 @@ that has outgrown the product; the README says so.`
   another `Notepad.exe`. The process `finished()` in under 5 s without a window is therefore not
   the end: `pollChildWindow()` adopts the first window that was not on screen before the launch
   (`m_windowsBefore`), and closing time posts `WM_CLOSE` to that window instead.
-  `shortcut: only a window that appears within 5 s is adopted; otherwise the launcher comes back.`
+  `shortcut: only a window that appears within 10 s is adopted; otherwise the launcher comes back.`
+- Store apps added from the Start Menu are stored as `explorer.exe` + `shell:AppsFolder\<AUMID>`;
+  explorer exits at once and the game's `ApplicationFrameWindow` is adopted like any Store stub.
+  `installedApps()` (in `policy.*`) runs `Get-StartApps` once to build the picker list.
 - Apps that spawn their own children can leave orphans. Accepted for v1; the fix is a job object
   with `KILL_ON_JOB_CLOSE`, do not half-implement it.
 - Record the child PID in `state.json`; on start, kill it only if the PID is alive **and** its
@@ -167,7 +170,9 @@ a lockout says how many minutes. The correct PIN swaps to two big buttons: *Add 
 `WA_ShowWithoutActivating`. It is the only way back from a running app, so it is not optional.
 
 **Settings:** neutral, dense, plain form. Budget spin box (5..480 min), app list with icons,
-Add (`*.exe`) / Remove (confirm), PIN + confirm in setup, blank PIN in settings keeps the old one.
+**Add from Start Menu…** (a searchable, checkable list of the Start Menu "All apps" — desktop
+apps and Store games both; `installedApps()` in `policy.*`), Add (`*.exe`) / Remove (confirm),
+PIN + confirm in setup, blank PIN in settings keeps the old one.
 One honest line: "Kids Mode is a boundary, not a lock: an administrator can always remove it."
 
 ## Layout
@@ -230,6 +235,9 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
 - `policy`/`state`: JSON round-trip, missing file defaults, date rollover zeroes usage and bonus,
   lockout window.
 - `pin`: verify/reject, corrupt input, lockout 5 → 5 min, doubling, 1 h cap.
+- `policy`: `parseStartMenuApps` on a `Get-StartApps` sample — Store `!App` ids become
+  `explorer.exe + shell:AppsFolder\…`, absolute `.exe` paths are kept, `Uninstall`/`ms-settings:`
+  /shell-GUID junk is dropped, result sorted by name.
 - No test needs a real child process, wall clock, admin rights or a PIN dialog.
 
 ## Running it

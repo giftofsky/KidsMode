@@ -32,3 +32,9 @@ struct Policy
 
     static QString defaultPath();
 };
+
+// The Start Menu "All apps" list as tiles: desktop apps keep their exe, Store apps
+// launch through explorer.exe + shell:AppsFolder, which the child-window adoption
+// already handles. The split-out parser exists for the tests.
+QList<AppTile> parseStartMenuApps(const QString &output);
+QList<AppTile> installedApps();
