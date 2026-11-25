@@ -9,9 +9,11 @@ Ctrl+Alt+Del, another Windows account or a reboot can get around it. That is acc
 
 ## Use
 
-1. Log in as the child, run `KidsMode.exe`. The setup asks for a 4-digit PIN, a daily limit and
-   at least one app.
-2. Put a shortcut to `KidsMode.exe` in the child's Startup folder (`Win+R`, `shell:startup`).
+1. Log in as the child and run `KidsMode-Setup.exe`. It installs for that user only (no admin),
+   with a Start Menu entry and a Startup shortcut, and includes everything it needs — no Qt
+   install required. (Building from source? Running `KidsMode.exe` directly works too; then put
+   a shortcut in the child's Startup folder, `Win+R`, `shell:startup`.)
+2. The setup asks for a 4-digit PIN, a daily limit and at least one app.
 3. To change the limit or the apps: press the **Parent** button (or hold the time bar for two
    seconds) and enter the PIN. The same menu has **Quit Kids Mode**.
 4. To reset everything: delete `%APPDATA%\KidsMode\` and run the app again.
@@ -38,3 +40,5 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 
 LGPLv3: link Qt dynamically and ship the DLLs with `windeployqt`. Do not build Qt statically.
+After a Release build, `powershell -File installer\build-installer.ps1` produces the single
+offline `build\KidsMode-Setup.exe` (Qt Installer Framework).

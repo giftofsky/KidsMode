@@ -211,6 +211,16 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
 - Qt Creator has the project open with the **Desktop Qt 6.11.0 MSVC2022 64bit** kit and a
   Release config; builds land in `build/Desktop_Qt_6_11_0_MSVC2022_64bit_Release`. Prefer the
   MCP tools so the kit stays consistent.
+- Installer: `powershell -File installer\build-installer.ps1` → `build\KidsMode-Setup.exe` —
+  one offline exe (Qt Installer Framework), per-user install to `AppData\Local\Programs`,
+  Start Menu + Startup shortcuts, ships the Qt DLLs and the MSVC CRT so it works on any
+  Windows 10/11 x64 PC without admin. `installer/` holds the IFW config; the payload in
+  `packages/com.kidsmode.app/data/` is generated — do not edit or commit it.
+  `shortcut: IFW 4.10 quirks — no <AdminRequiredFor*> in config.xml (per-user target dir makes it
+  moot); the component script must declare function Component() {} before overriding
+  createOperations.`
+- Test the installer headless: `KidsMode-Setup.exe install com.kidsmode.app --root <dir> --am
+  --confirm-command`, then `maintenancetool.exe purge --root <dir> --am --confirm-command`.
 
 ## Testing
 
