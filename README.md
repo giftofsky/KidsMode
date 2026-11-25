@@ -52,12 +52,6 @@ a family tool for a shared PC, not surveillance or a walled garden.
       <sub>Parents add apps by name — no file paths, no hunting through folders.</sub>
     </td>
   </tr>
-  <tr>
-    <td colspan="2">
-      <img src="docs/images/startmenu-games.png" alt="The same list filtered by the word game"><br>
-      <sub>Type <b>game</b> and the list shrinks to the games — Store games included.</sub>
-    </td>
-  </tr>
 </table>
 
 ## Get it
