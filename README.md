@@ -43,10 +43,17 @@ a family tool for a shared PC, not surveillance or a walled garden.
   </tr>
   <tr>
     <td width="50%">
+      <img src="docs/images/parent-control.png" alt="The parent settings dialog: time per day, approved apps and PIN"><br>
+      <sub>Everything a parent sets, in one plain dialog: the daily limit, the approved apps,
+      the PIN. Changes take effect immediately.</sub>
+    </td>
+    <td width="50%">
       <img src="docs/images/startmenu.png" alt="Add apps by name from the Start Menu, with icons"><br>
       <sub>Parents add apps by name — no file paths, no hunting through folders.</sub>
     </td>
-    <td width="50%">
+  </tr>
+  <tr>
+    <td colspan="2">
       <img src="docs/images/startmenu-games.png" alt="The same list filtered by the word game"><br>
       <sub>Type <b>game</b> and the list shrinks to the games — Store games included.</sub>
     </td>
