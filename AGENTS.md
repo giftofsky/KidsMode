@@ -212,7 +212,8 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
   Release config; builds land in `build/Desktop_Qt_6_11_0_MSVC2022_64bit_Release`. Prefer the
   MCP tools so the kit stays consistent.
 - Installer: `powershell -File installer\build-installer.ps1` → `build\KidsMode-Setup.exe` —
-  one offline exe (Qt Installer Framework), per-user install to `AppData\Local\Programs`,
+  one offline exe (IFW = Qt Installer Framework, `E:\Qt\Tools\QtInstallerFramework\4.10`),
+  per-user install to `AppData\Local\Programs`,
   Start Menu + Startup shortcuts, ships the Qt DLLs and the MSVC CRT so it works on any
   Windows 10/11 x64 PC without admin. `installer/` holds the IFW config; the payload in
   `packages/com.kidsmode.app/data/` is generated — do not edit or commit it.
