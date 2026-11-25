@@ -1,9 +1,10 @@
 #include "launcherwindow.h"
 
+#include "appicon.h"
+
 #include <QApplication>
 #include <QCloseEvent>
 #include <QEvent>
-#include <QFileIconProvider>
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -275,7 +276,6 @@ void LauncherWindow::setApps(const QList<AppTile> &apps)
         delete item;
     }
 
-    QFileIconProvider provider;
     int index = 0;
     for (const AppTile &tile : apps) {
         const QFileInfo info(tile.exePath);
@@ -283,7 +283,7 @@ void LauncherWindow::setApps(const QList<AppTile> &apps)
 
         auto *button = new QToolButton;
         button->setText(tile.name);
-        button->setIcon(exists ? provider.icon(info)
+        button->setIcon(exists ? appIcon(tile)
                                : style()->standardIcon(QStyle::SP_FileIcon));
         button->setIconSize(QSize(96, 96));
         button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);

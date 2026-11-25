@@ -96,4 +96,6 @@ a single offline `KidsMode-Setup.exe` with the Qt Installer Framework.
 ## License
 
 LGPLv3. Qt is linked dynamically and its DLLs are shipped with the app via `windeployqt`; the
-app does not build Qt statically and does not modify it.
+app does not build Qt statically and does not modify it. The app icon uses the Teddy bear emoji
+from [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (MIT) — see
+[CREDITS.md](CREDITS.md).

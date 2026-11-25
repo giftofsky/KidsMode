@@ -1,5 +1,7 @@
 #include <QApplication>
 #include <QDir>
+#include <QFileIconProvider>
+#include <QFileInfo>
 #include <QLockFile>
 
 #include "hudwindow.h"
@@ -11,6 +13,9 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("KidsMode"));
+    // the bear icon is compiled into the exe (resources/app.rc); reuse it for the window
+    QApplication::setWindowIcon(
+        QFileIconProvider().icon(QFileInfo(QApplication::applicationFilePath())));
     installLogger();
     qCInfo(kidsmode) << "starting" << QCoreApplication::applicationFilePath();
 

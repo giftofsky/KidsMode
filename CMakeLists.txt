@@ -21,7 +21,10 @@ target_include_directories(KidsModeCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(KidsModeCore PUBLIC Qt6::Core Qt6::Network)
 
 qt_add_executable(KidsMode WIN32
+    resources/app.rc
     src/main.cpp
+    src/appicon.cpp
+    src/appicon.h
     src/sessioncontroller.cpp
     src/sessioncontroller.h
     src/launcherwindow.cpp
@@ -33,7 +36,7 @@ qt_add_executable(KidsMode WIN32
     src/logging.cpp
     src/logging.h
 )
-target_link_libraries(KidsMode PRIVATE KidsModeCore Qt6::Widgets)
+target_link_libraries(KidsMode PRIVATE KidsModeCore Qt6::Widgets shell32 comctl32)
 
 enable_testing()
 

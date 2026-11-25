@@ -185,6 +185,7 @@ src/hudwindow.*           running-app strip
 src/settingsdialog.*      PIN, budget, apps
 src/logging.*             qCInfo/qCWarning → kidsmode.log
 src/policy.*              policy.json + AppTile
+src/appicon.*             tile icons: shell jumbo logo for Store apps, exe icon otherwise
 src/state.*               state.json
 src/sessiontimer.*        injected clock, tick accounting
 src/pin.*                 PBKDF2, lockout schedule
@@ -206,7 +207,8 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
 - `QPasswordDigestor` is in QtNetwork, so `KidsModeCore` links `Qt6::Network`. Nothing in the app
   needs networking.
 - Windows headers: `WIN32_LEAN_AND_MEAN` + `NOMINMAX`, included **after** all Qt headers and only
-  in `.cpp` files. Only `sessioncontroller.cpp` needs them (orphan cleanup).
+  in `.cpp` files. `sessioncontroller.cpp` (orphan cleanup) and `appicon.cpp` (shell icon lookup,
+  which is why `KidsMode` links `shell32` + `comctl32`) need them.
 - Do not use Ninja from a plain shell on this machine — MSVC's environment is not loaded. The
   Visual Studio generator does not need `vcvars`.
 - From a plain shell `cmake`/`ctest` are not on PATH — use `E:\Qt\Tools\CMake_64\bin\`, and put

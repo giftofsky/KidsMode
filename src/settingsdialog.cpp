@@ -1,10 +1,12 @@
 #include "settingsdialog.h"
 
+#include "appicon.h"
+#include "pin.h"
+
 #include <QApplication>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
-#include <QFileIconProvider>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -19,8 +21,6 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
-
-#include "pin.h"
 
 SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *parent)
     : QDialog(parent)
@@ -104,10 +104,10 @@ SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *pa
 void SettingsDialog::syncAppsToList()
 {
     m_apps->clear();
-    QFileIconProvider provider;
     for (const AppTile &tile : m_policy.apps) {
-        auto *item = new QListWidgetItem(provider.icon(QFileInfo(tile.exePath)), tile.name, m_apps);
-        item->setToolTip(tile.exePath);
+        auto *item = new QListWidgetItem(appIcon(tile), tile.name, m_apps);
+        item->setToolTip(tile.args.isEmpty() ? tile.exePath
+                                             : tile.exePath + QLatin1Char(' ') + tile.args);
     }
 }
 
