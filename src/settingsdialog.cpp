@@ -18,9 +18,11 @@
 #include <QPushButton>
 #include <QRegularExpressionValidator>
 #include <QSpinBox>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <memory>
 
 SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *parent)
     : QDialog(parent)
@@ -42,6 +44,7 @@ SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *pa
 
     m_budget = new QSpinBox(this);
     m_budget->setRange(5, 480);
+    m_budget->setSingleStep(5);
     m_budget->setSuffix(tr(" min"));
     m_budget->setValue(policy.budgetSeconds > 0 ? policy.budgetSeconds / 60 : 60);
     auto *budgetRow = new QFormLayout;
@@ -80,7 +83,11 @@ SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *pa
         field->setEchoMode(QLineEdit::Password);
         field->setMaximumWidth(120);
     }
-    m_pin->setPlaceholderText(setupMode ? tr("4 digits") : tr("Leave blank to keep"));
+    // a saved PIN is only stored hashed, so show dots as a hint instead of the real digits
+    m_pin->setPlaceholderText(!setupMode && policy.hasPin() ? QStringLiteral("\u2022\u2022\u2022\u2022")
+                                                            : tr("4 digits"));
+    if (!setupMode && policy.hasPin())
+        m_pin->setToolTip(tr("Leave blank to keep the current PIN"));
     m_pinConfirm->setPlaceholderText(tr("Repeat"));
     pinLayout->addRow(tr("PIN:"), m_pin);
     pinLayout->addRow(tr("Repeat:"), m_pinConfirm);
@@ -142,6 +149,7 @@ void SettingsDialog::addFromStartMenu()
     auto *search = new QLineEdit(&dlg);
     search->setPlaceholderText(tr("Search, for example: math"));
     auto *list = new QListWidget(&dlg);
+    list->setIconSize(QSize(24, 24));
     for (int i = 0; i < found.size(); ++i) {
         auto *item = new QListWidgetItem(found.at(i).name, list);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
@@ -155,6 +163,20 @@ void SettingsDialog::addFromStartMenu()
             list->item(i)->setHidden(!text.isEmpty()
                                      && !list->item(i)->text().contains(text, Qt::CaseInsensitive));
     });
+
+    // Icons pop in lazily: resolving a Store logo is a shell round-trip, so feed the
+    // list a few rows per tick instead of blocking the dialog open. appIcon() caches,
+    // so scrolling back or reopening the dialog is instant.
+    auto nextRow = std::make_shared<int>(0);
+    auto *iconTimer = new QTimer(&dlg);
+    connect(iconTimer, &QTimer::timeout, &dlg, [list, found, nextRow, iconTimer]() {
+        for (int n = 0; n < 6 && *nextRow < list->count(); ++n, ++*nextRow)
+            list->item(*nextRow)
+                ->setIcon(appIcon(found.at(list->item(*nextRow)->data(Qt::UserRole).toInt())));
+        if (*nextRow >= list->count())
+            iconTimer->stop();
+    });
+    iconTimer->start(20);
     auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
