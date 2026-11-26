@@ -2,3 +2,4 @@ build/
 .qtcreator/
 opencode.json
 installer/packages/com.kidsmode.app/data/
+backlog/
