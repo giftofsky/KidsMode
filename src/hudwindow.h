@@ -1,9 +1,9 @@
 #pragma once
 
+#include <QTimer>
 #include <QWidget>
 
 class QLabel;
-class QProgressBar;
 
 class HudWindow : public QWidget
 {
@@ -18,9 +18,13 @@ signals:
 
 protected:
     void showEvent(QShowEvent *event) override;
+    void enterEvent(QEnterEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
 
 private:
+    void setDim(bool dim);
+
     QLabel *m_label = nullptr;
-    QProgressBar *m_bar = nullptr;
+    QTimer m_idle; // dim again a few seconds after the last touch
     bool m_low = false;
 };

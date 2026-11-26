@@ -176,7 +176,10 @@ a 3x4 keypad — a touchscreen with no keyboard is enough. A wrong PIN clears th
 a lockout says how many minutes. The correct PIN swaps to two big buttons: *Add 15 minutes* and
 *Quit Kids Mode*.
 
-**HUD:** 64 px strip, bottom-centre, remaining time + Home, amber under 5 minutes.
+**HUD:** 230x44 strip, bottom-centre: remaining minutes + Home, amber under 5 minutes.
+Faded to 55% opacity and woken to full by a mouse-enter or a press, fading back after 4 s idle —
+faded, never hidden: a touchscreen has no hover and this is the only way home, and the amber
+warning never fades.
 `Qt::Tool | FramelessWindowHint | WindowStaysOnTopHint | WindowDoesNotAcceptFocus` plus
 `WA_ShowWithoutActivating`. It is the only way back from a running app, so it is not optional.
 
@@ -228,6 +231,10 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
   `E:\Qt\6.11.0\msvc2022_64\bin` in PATH when running ctest, or every test fails with
   `0xc0000135` (the Qt DLLs are not next to the test exes).
 - Kill `KidsMode.exe` before building, or the link step dies with LNK1104 (running exe locked).
+- `jom` can skip dependents of a changed header: `hudwindow.h` gained a `QTimer` member,
+  `main.cpp` was not rebuilt, and the app then crashed with an access violation in `Qt6Core`
+  during startup (old object size, new constructor). After a header change that grows a class,
+  touch the `.cpp` files that use it — or clean-build — before believing any crash you see.
 - Qt Creator has the project open with the **Desktop Qt 6.11.0 MSVC2022 64bit** kit and a
   Release config; builds land in `build/Desktop_Qt_6_11_0_MSVC2022_64bit_Release`. Prefer the
   MCP tools so the kit stays consistent.
@@ -268,7 +275,7 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
   delete it before the next start.
 - The HUD is invisible to accessibility tools (`Qt::Tool`, no focus), so UI automation cannot
   click it; post `WM_LBUTTONDOWN/UP` to the `QWindowTool*` window instead (Home is at the right
-  end of the 460 px strip).
+  end of the 230 px strip, and a `WM_MOUSEMOVE` is what wakes it from 55% opacity).
 
 ## Qt Creator MCP server
 
