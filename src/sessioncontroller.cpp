@@ -365,8 +365,8 @@ void SessionController::requestApp(const AppTile &tile)
     m_state = State::AppRunning;
     m_hud->setRemaining(m_timer->remainingSeconds(), totalBudget());
     m_launcher->setAssertFocus(false);
+    m_launcher->showShield(); // cream first, so the z-order change below has nothing to expose
     m_launcher->setTopmost(false);
-    m_launcher->showShield();
     m_launcher->showFullScreen();
     shieldAsDesktop();
     m_windowsBefore = visibleWindows();
@@ -615,7 +615,7 @@ void SessionController::enforceLauncherOnScreen()
 
     if (m_launcher->isMinimized())
         m_launcher->showFullScreen(); // Win+D, "Show desktop"
-    m_launcher->raise();              // the launcher is topmost in these states
+    m_launcher->setTopmost(true); // raises it, and re-asserts the style Qt no longer holds for us
 }
 
 void SessionController::enforceChildOnTop()
@@ -728,8 +728,8 @@ void SessionController::showSettings()
     m_state = State::Settings;
     m_timer->setRunning(false);
     m_launcher->setAssertFocus(false);
+    m_launcher->showShield(); // cream first, so the z-order change below has nothing to expose
     m_launcher->setTopmost(false);
-    m_launcher->showShield();
     m_launcher->showFullScreen();
 
     const qint64 now = QDateTime::currentSecsSinceEpoch();

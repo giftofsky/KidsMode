@@ -11,6 +11,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -60,15 +61,18 @@ SettingsDialog::SettingsDialog(const Policy &policy, bool setupMode, QWidget *pa
     auto *appButtons = new QHBoxLayout;
     auto *addInstalled = new QPushButton(tr("Add from Start Menu..."), appsGroup);
     auto *add = new QPushButton(tr("Add app..."), appsGroup);
+    auto *rename = new QPushButton(tr("Rename..."), appsGroup);
     auto *remove = new QPushButton(tr("Remove"), appsGroup);
     appButtons->addWidget(addInstalled);
     appButtons->addWidget(add);
+    appButtons->addWidget(rename);
     appButtons->addWidget(remove);
     appButtons->addStretch();
     appsLayout->addLayout(appButtons);
     layout->addWidget(appsGroup, 1);
     connect(addInstalled, &QPushButton::clicked, this, &SettingsDialog::addFromStartMenu);
     connect(add, &QPushButton::clicked, this, &SettingsDialog::addApp);
+    connect(rename, &QPushButton::clicked, this, &SettingsDialog::renameApp);
     connect(remove, &QPushButton::clicked, this, &SettingsDialog::removeApp);
 
     auto *pinGroup = new QGroupBox(tr("Parent PIN"), this);
@@ -112,9 +116,13 @@ void SettingsDialog::syncAppsToList()
 {
     m_apps->clear();
     for (const AppTile &tile : m_policy.apps) {
-        auto *item = new QListWidgetItem(appIcon(tile), tile.name, m_apps);
-        item->setToolTip(tile.args.isEmpty() ? tile.exePath
-                                             : tile.exePath + QLatin1Char(' ') + tile.args);
+        auto *item = new QListWidgetItem(appIcon(tile), tile.label(), m_apps);
+        const QString target = tile.args.isEmpty()
+            ? tile.exePath
+            : tile.exePath + QLatin1Char(' ') + tile.args;
+        // A shortened label hides the Windows name, so keep it reachable in the tooltip.
+        item->setToolTip(tile.label() == tile.name ? target
+                                                   : tr("%1\n%2").arg(tile.name, target));
     }
 }
 
@@ -203,14 +211,39 @@ void SettingsDialog::addFromStartMenu()
         syncAppsToList();
 }
 
-void SettingsDialog::removeApp()
+// Accessibility and touch selection can mark an item without making it current.
+int SettingsDialog::selectedAppRow() const
 {
-    // Accessibility and touch selection can mark an item without making it current.
     QListWidgetItem *item = m_apps->currentItem();
     if (!item && !m_apps->selectedItems().isEmpty())
         item = m_apps->selectedItems().constFirst();
     const int row = item ? m_apps->row(item) : -1;
-    if (row < 0 || row >= m_policy.apps.size())
+    return (row >= 0 && row < m_policy.apps.size()) ? row : -1;
+}
+
+void SettingsDialog::renameApp()
+{
+    const int row = selectedAppRow();
+    if (row < 0)
+        return;
+
+    const AppTile &tile = m_policy.apps.at(row);
+    bool ok = false;
+    const QString text = QInputDialog::getText(this, tr("Rename app"),
+                                              tr("Name your child sees for \"%1\":").arg(tile.name),
+                                              QLineEdit::Normal, tile.label(), &ok)
+                             .trimmed();
+    if (!ok || text.isEmpty())
+        return;
+
+    m_policy.apps[row].shownName = text;
+    syncAppsToList();
+}
+
+void SettingsDialog::removeApp()
+{
+    const int row = selectedAppRow();
+    if (row < 0)
         return;
 
     const QString name = m_policy.apps.at(row).name;

@@ -38,6 +38,7 @@ signals:
 protected:
     bool event(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
     void buildTilesPage();
@@ -45,14 +46,17 @@ private:
     void buildShieldPage();
     void appendPinDigit(const QString &digit);
     void updateDots();
+    void applyTopmost();
 
     QStackedWidget *m_pages = nullptr;
     QStackedWidget *m_lockPages = nullptr;
     QGridLayout *m_tileGrid = nullptr;
     QProgressBar *m_timeBar = nullptr;
+    QLabel *m_timeText = nullptr;
     QLabel *m_pinDots = nullptr;
     QLabel *m_pinMessage = nullptr;
     QString m_pin;
     bool m_assertFocus = false;
     bool m_lowTime = false;
+    bool m_topmost = false;
 };

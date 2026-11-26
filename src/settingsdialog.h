@@ -23,6 +23,8 @@ private:
     void addApp();
     void addFromStartMenu();
     void removeApp();
+    void renameApp();
+    int selectedAppRow() const;
     void syncAppsToList();
 
     Policy m_policy;

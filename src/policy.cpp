@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
 #include <QStandardPaths>
@@ -22,11 +23,14 @@ QJsonObject Policy::toJson() const
 {
     QJsonArray tileArray;
     for (const AppTile &tile : apps) {
-        tileArray.append(QJsonObject{
+        QJsonObject tileObject{
             {QStringLiteral("name"), tile.name},
             {QStringLiteral("exePath"), tile.exePath},
             {QStringLiteral("args"), tile.args},
-        });
+        };
+        if (!tile.shownName.isEmpty()) // old policy.json files simply have no such key
+            tileObject.insert(QStringLiteral("shownName"), tile.shownName);
+        tileArray.append(tileObject);
     }
 
     return QJsonObject{
@@ -53,6 +57,7 @@ Policy Policy::fromJson(const QJsonObject &object)
             tileObject.value(QStringLiteral("name")).toString(),
             tileObject.value(QStringLiteral("exePath")).toString(),
             tileObject.value(QStringLiteral("args")).toString(),
+            tileObject.value(QStringLiteral("shownName")).toString(),
         });
     }
 
@@ -90,6 +95,52 @@ bool Policy::save(const QString &path) const
         return false;
     file.write(QJsonDocument(toJson()).toJson(QJsonDocument::Indented));
     return file.commit();
+}
+
+QString friendlyName(const QString &rawName)
+{
+    // Everything after a colon or a dash is store-page marketing: "Math Kids: Math Games For
+    // Kids" → "Math Kids". \x{…} keeps the pattern ASCII.
+    static const QRegularExpression separator(QStringLiteral("[\\x{2013}\\x{2014}:]"));
+    QString name = rawName.section(separator, 0, 0);
+    if (name.trimmed().isEmpty())
+        name = rawName;
+
+    // Boilerplate on the end tells a child nothing either. Stripped from the right, repeatedly,
+    // but never past the second character: an app called "Free" stays "Free".
+    static const QRegularExpression tail(
+        QStringLiteral("\\s+(for (kids|children)|apps?|hd|lite|free)$"),
+        QRegularExpression::CaseInsensitiveOption);
+    while (true) {
+        const qsizetype at = tail.match(name).capturedStart();
+        if (at < 2)
+            break;
+        name.chop(name.size() - at);
+    }
+
+    name = name.simplified();
+    if (name.isEmpty())
+        return rawName.trimmed();
+
+    // A name typed entirely in lower case is a shortcut, not a label. Anything already cased is
+    // left exactly as it is, so "iPhone" and "Paint.NET" survive.
+    bool anyUpper = false;
+    for (const QChar c : name) {
+        if (c.isUpper()) {
+            anyUpper = true;
+            break;
+        }
+    }
+    if (!anyUpper) {
+        bool wordStart = true;
+        for (QChar &c : name) {
+            if (wordStart && c.isLower())
+                c = c.toUpper();
+            wordStart = c == QLatin1Char(' ');
+        }
+    }
+
+    return name;
 }
 
 QList<AppTile> parseStartMenuApps(const QString &output)

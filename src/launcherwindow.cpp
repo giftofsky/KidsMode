@@ -4,12 +4,15 @@
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QColor>
 #include <QEvent>
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPaintEvent>
+#include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
@@ -21,14 +24,84 @@
 
 #include <functional>
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
 namespace {
+
+// The friendliest face the operating system already has: Windows 11 ships Segoe UI Rounded,
+// Comic Sans MS is on every Windows since 95. Nothing to ship, nothing to license.
+// It reaches the kid pages only - SettingsDialog is its own window and stays on the plain font.
+const QString kKidFontFamily =
+    QStringLiteral("'Segoe UI Rounded','Comic Sans MS','Segoe UI'");
+
+// Segoe UI Emoji, reached through Qt's font fallback. These glyphs are decoration: each one sits
+// in its own label with an explicit accessible name, so no heading or button reads out a glyph.
+const QString kBear = QStringLiteral("\U0001F9F8");
+const QString kLock = QStringLiteral("\U0001F510");
+const QString kClock = QStringLiteral("\U0001F552");
+
+// Calm pastel card tints, chosen by a hash of the app name so a tile keeps its colour when the
+// list reorders. Deliberately low saturation: the screen stays cream, not candy.
+QString tileTint(const QString &name)
+{
+    static const char *const tints[] = {"#fde7ec", "#e6f0fb", "#e8f4e6", "#fdf3d9", "#efe8f8"};
+    quint32 hash = 2166136261u;
+    for (const QChar c : name) {
+        hash ^= c.unicode();
+        hash *= 16777619u;
+    }
+    return QString::fromLatin1(tints[hash % (sizeof(tints) / sizeof(*tints))]);
+}
+
+QString tileStyle(const QString &tint)
+{
+    return QStringLiteral("QToolButton{background:%1;border:2px solid #e6dccb;border-radius:20px;"
+                          "padding:10px;font-size:16px;font-weight:600;color:#4a3f35;}"
+                          "QToolButton:hover{border-color:#c9a227;}"
+                          "QToolButton:pressed{background:#f3ead9;}"
+                          "QToolButton:focus{border:3px solid #c9a227;}"
+                          "QToolButton:disabled{color:#a99f92;background:#f3eee4;}")
+        .arg(tint);
+}
+
+// The track the remaining playtime is drawn on; the number itself lives in m_timeText so the
+// strip reads as "this much play is left" instead of a percentage.
+// QToolButton cannot word-wrap: it elides mid-word ("Coloring G..."). Break a long name onto a
+// second line at the space nearest the middle, so a child reads two short words instead.
+// shortcut: a name whose halves are still too long, or that has no space at all, still elides.
+QString wrapName(const QString &name)
+{
+    if (name.size() <= 20)
+        return name;
+
+    int best = -1;
+    const int middle = name.size() / 2;
+    for (int i = name.indexOf(QLatin1Char(' ')); i != -1; i = name.indexOf(QLatin1Char(' '), i + 1)) {
+        if (best < 0 || qAbs(i - middle) < qAbs(best - middle))
+            best = i;
+    }
+    if (best < 0)
+        return name;
+    return name.left(best) + QLatin1Char('\n') + name.mid(best + 1);
+}
 
 QString timeBarStyle(bool low)
 {
-    return QStringLiteral("QProgressBar{border:0;border-radius:15px;background:#efe6d5;"
-                          "text-align:center;font-size:16px;font-weight:600;color:#4a3f35;}"
-                          "QProgressBar::chunk{border-radius:15px;background:%1;}")
+    return QStringLiteral("QProgressBar{border:0;border-radius:13px;background:#efe6d5;}"
+                          "QProgressBar::chunk{border-radius:13px;background:%1;}")
         .arg(low ? QStringLiteral("#e09a2b") : QStringLiteral("#6fae7c"));
+}
+
+QString timeTextStyle(bool low)
+{
+    return QStringLiteral("font-size:27px;font-weight:700;color:%1;")
+        .arg(low ? QStringLiteral("#b4741c") : QStringLiteral("#4a3f35"));
 }
 
 QPushButton *keypadButton(const QString &text, QWidget *parent)
@@ -51,8 +124,8 @@ public:
     explicit TimeBar(QWidget *parent = nullptr)
         : QProgressBar(parent)
     {
-        setTextVisible(true);
-        setFixedHeight(30);
+        setTextVisible(false);
+        setFixedHeight(26);
         m_hold.setSingleShot(true);
         m_hold.setInterval(2000);
         connect(&m_hold, &QTimer::timeout, this, [this] {
@@ -64,6 +137,27 @@ public:
     std::function<void()> onLongPress;
 
 protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        QProgressBar::paintEvent(event);
+        // A light marker at the leading edge, so the strip reads as a thing that runs down
+        // rather than a bar filling up (backlog 003).
+        const int span = maximum() - minimum();
+        if (span <= 0 || value() <= minimum() || value() >= maximum())
+            return;
+
+        const QRectF track = rect();
+        const qreal radius = track.height() / 2 - 4;
+        const qreal frac = qreal(value() - minimum()) / span;
+        const qreal x = track.left() + frac * track.width() - radius - 3;
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(255, 255, 255, 210));
+        painter.drawEllipse(QPointF(x, track.center().y()), radius, radius);
+    }
+
     void mousePressEvent(QMouseEvent *event) override
     {
         if (event->button() == Qt::LeftButton)
@@ -92,9 +186,13 @@ private:
 LauncherWindow::LauncherWindow(QWidget *parent)
     : QWidget(parent)
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    // Qt's own flags stay as they are for the whole session: WS_EX_TOPMOST is toggled in place
+    // by setTopmost(), because setWindowFlag() on a visible widget hides and re-creates the
+    // window and the desktop shows through for a frame (backlog 004).
+    setWindowFlags(Qt::FramelessWindowHint);
     setAttribute(Qt::WA_StyledBackground, true);
-    setStyleSheet(QStringLiteral("LauncherWindow{background:#fdf6e3;}"));
+    setStyleSheet(QStringLiteral("LauncherWindow{background:#fdf6e3;font-family:%1;}")
+                      .arg(kKidFontFamily));
     setFocusPolicy(Qt::StrongFocus);
 
     auto *outer = new QVBoxLayout(this);
@@ -115,14 +213,27 @@ void LauncherWindow::buildTilesPage()
     layout->setContentsMargins(64, 40, 64, 32);
     layout->setSpacing(20);
 
+    // The bear is the app's own mascot, in its own label so "What shall we play?" keeps a clean
+    // accessible name; the glyph would otherwise be read out as garbage.
+    auto *header = new QHBoxLayout;
+    header->setSpacing(16);
+    auto *bear = new QLabel(kBear, page);
+    bear->setAccessibleName(tr("Kids Mode"));
+    bear->setStyleSheet(QStringLiteral("font-size:42px;"));
     auto *title = new QLabel(tr("What shall we play?"), page);
-    title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet(QStringLiteral("font-size:32px;font-weight:600;color:#4a3f35;"));
-    layout->addWidget(title);
+    title->setStyleSheet(QStringLiteral("font-size:34px;font-weight:700;color:#8a5a3c;"));
+    header->addStretch();
+    header->addWidget(bear, 0, Qt::AlignVCenter);
+    header->addWidget(title);
+    header->addStretch();
+    layout->addLayout(header);
 
     auto *host = new QWidget;
     m_tileGrid = new QGridLayout(host);
     m_tileGrid->setSpacing(24);
+    // Room at the bottom so the last row can scroll clear of the footer instead of stopping
+    // half-cut above it (backlog 003).
+    m_tileGrid->setContentsMargins(0, 8, 0, 28);
     m_tileGrid->setAlignment(Qt::AlignCenter);
 
     auto *scroll = new QScrollArea(page);
@@ -144,19 +255,33 @@ void LauncherWindow::buildTilesPage()
     bar->onLongPress = [this] { emit parentRequested(); };
     m_timeBar = bar;
 
-    // A visible way out for the parent: the PIN prompt follows the click.
-    auto *parent = new QPushButton(tr("Parent"), page);
-    parent->setFixedSize(110, 34);
+    // The number is what the child cares about, so it leads; the track under it is the shape of
+    // what is left. The clock glyph is decoration and gets its own label.
+    m_timeText = new QLabel(page);
+    m_timeText->setStyleSheet(timeTextStyle(false));
+    auto *clock = new QLabel(kClock, page);
+    clock->setAccessibleName(tr("Time left"));
+    clock->setStyleSheet(QStringLiteral("font-size:22px;"));
+
+    // A visible way out for the parent: the PIN prompt follows the click. The padlock says
+    // "grown-up territory" to a child who cannot read the word yet.
+    auto *parent = new QPushButton(kLock + QStringLiteral(" ") + tr("Parent"), page);
+    parent->setAccessibleName(tr("Parent"));
+    parent->setFixedSize(132, 40);
     parent->setCursor(Qt::PointingHandCursor);
     parent->setStyleSheet(QStringLiteral(
         "QPushButton{background:#f3ead9;color:#7a6f63;border:1px solid #e6dccb;"
-        "border-radius:10px;font-size:13px;}"
+        "border-radius:12px;font-size:15px;}"
         "QPushButton:pressed{background:#e6dccb;}"));
     connect(parent, &QPushButton::clicked, this, &LauncherWindow::parentRequested);
 
     auto *bottom = new QHBoxLayout;
     bottom->setSpacing(12);
     bottom->addWidget(parent);
+    bottom->addSpacing(6);
+    bottom->addWidget(clock);
+    bottom->addWidget(m_timeText);
+    bottom->addSpacing(10);
     bottom->addWidget(m_timeBar, 1);
     layout->addLayout(bottom);
 
@@ -287,23 +412,18 @@ void LauncherWindow::setApps(const QList<AppTile> &apps)
         const bool exists = info.isFile();
 
         auto *button = new QToolButton;
-        button->setText(tile.name);
+        button->setText(wrapName(tile.label()));
         button->setIcon(exists ? appIcon(tile)
                                : style()->standardIcon(QStyle::SP_FileIcon));
-        button->setIconSize(QSize(96, 96));
+        button->setIconSize(QSize(112, 112));
         button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-        button->setFixedSize(200, 180);
+        button->setFixedSize(212, 204);
         button->setCursor(exists ? Qt::PointingHandCursor : Qt::ArrowCursor);
         button->setFocusPolicy(Qt::StrongFocus);
         button->setEnabled(exists);
-        button->setToolTip(exists ? tile.exePath : tr("%1 is missing").arg(tile.exePath));
-        button->setStyleSheet(QStringLiteral(
-            "QToolButton{background:#fffaf0;border:2px solid #e6dccb;border-radius:18px;"
-            "padding:12px;font-size:16px;font-weight:600;color:#4a3f35;}"
-            "QToolButton:hover{border-color:#c9a227;}"
-            "QToolButton:pressed{background:#f3ead9;}"
-            "QToolButton:focus{border:3px solid #c9a227;}"
-            "QToolButton:disabled{color:#a99f92;background:#f3eee4;}"));
+        button->setToolTip(exists ? tr("%1\n%2").arg(tile.name, tile.exePath)
+                                  : tr("%1 is missing").arg(tile.exePath));
+        button->setStyleSheet(tileStyle(tileTint(tile.name)));
         connect(button, &QToolButton::clicked, this, [this, tile] { emit appRequested(tile); });
 
         m_tileGrid->addWidget(button, index / 4, index % 4, Qt::AlignCenter);
@@ -322,14 +442,20 @@ void LauncherWindow::setRemaining(int remainingSeconds, int totalSeconds)
         return;
 
     const int total = qMax(totalSeconds, 1);
+    const int minutes = (remainingSeconds + 59) / 60;
     m_timeBar->setRange(0, total);
     m_timeBar->setValue(qMin(remainingSeconds, total));
-    m_timeBar->setFormat(tr("%1 min left").arg((remainingSeconds + 59) / 60));
+
+    const QString spoken = tr("%1 minutes left").arg(minutes);
+    m_timeBar->setAccessibleName(spoken);
+    m_timeText->setText(tr("%1 min left").arg(minutes));
+    m_timeText->setAccessibleName(spoken);
 
     const bool low = remainingSeconds <= 300;
     if (low != m_lowTime) {
         m_lowTime = low;
         m_timeBar->setStyleSheet(timeBarStyle(low));
+        m_timeText->setStyleSheet(timeTextStyle(low));
     }
 }
 
@@ -394,15 +520,33 @@ void LauncherWindow::updateDots()
     m_pinDots->setText(text.trimmed());
 }
 
+// Topmost is a state, and Win32 can switch it in place. setWindowFlag() on a visible widget hides
+// the window and builds a new one, which flashes the desktop for a frame — the exact thing the
+// product promises never to show (backlog 004). So Qt's flags never change after construction and
+// only WS_EX_TOPMOST moves.
 void LauncherWindow::setTopmost(bool on)
 {
-    setWindowFlag(Qt::WindowStaysOnTopHint, on);
-    setWindowFlag(Qt::FramelessWindowHint, true);
+    m_topmost = on;
+    applyTopmost();
+}
+
+void LauncherWindow::applyTopmost()
+{
+    if (!isVisible())
+        return; // showEvent() applies it once the window exists
+    ::SetWindowPos(reinterpret_cast<HWND>(winId()), m_topmost ? HWND_TOPMOST : HWND_NOTOPMOST,
+                   0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
 void LauncherWindow::setAssertFocus(bool on)
 {
     m_assertFocus = on;
+}
+
+void LauncherWindow::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    applyTopmost(); // also after a Win+D restore, where Qt may rebuild the window
 }
 
 bool LauncherWindow::event(QEvent *event)
@@ -414,6 +558,7 @@ bool LauncherWindow::event(QEvent *event)
                 return;
             if (isMinimized())
                 showFullScreen(); // Win+D / "Show desktop"
+            applyTopmost();
             raise();
             activateWindow();
         });

@@ -75,6 +75,11 @@ Rules:
 - **Topmost is a state, not a window property.** Only `Launcher`, `Locked` and the HUD are
   topmost. A topmost child window would hide its own file dialogs, so the app is *not* made
   topmost; it is raised with `HWND_TOP` and `SetForegroundWindow` instead.
+- **The launcher flips topmost with Win32, not Qt** (`LauncherWindow::setTopmost` →
+  `SetWindowPos(HWND_TOPMOST | HWND_NOTOPMOST)`). Qt's flags are set once in the constructor:
+  `setWindowFlag()` on the visible launcher hides and re-creates the window, and the real desktop
+  shows for a frame — that was the flicker in backlog 004. Because Qt no longer owns the style,
+  `showEvent()` and the 1 s guard re-assert it.
 - **Our dialogs are topmost** (`onTop()`), and `keepDialogOnTop()` re-raises one that outlived the
   app it was opened over — otherwise the launcher turning topmost again buries it and the child is
   stuck with no way home. The exception is `SettingsDialog`: topmost would push its native file
@@ -114,7 +119,7 @@ unelevated:
 
 | File | Holds |
 |---|---|
-| `policy.json` | PBKDF2 salt + hash + iterations, `budgetSeconds`, apps |
+| `policy.json` | PBKDF2 salt + hash + iterations, `budgetSeconds`, apps (`exePath`, `args`, Windows `name`, optional `shownName`) |
 | `state.json` | `date`, `secondsUsed`, `bonusSeconds`, `failedPins`, `failedPinUntilEpoch`, `childPid`, `childExe` |
 | `kidsmode.log` | every state change, launch and child event; rotates to `.1` at 1 MB |
 | `browser-profile/` | the profile Chrome/Edge start with, so we own their process |
@@ -155,9 +160,15 @@ that has outgrown the product; the README says so.`
 
 ## UI
 
-**Kid screen:** warm cream background, big tiles (icon 96 px, button 200x180), friendly type, a
-rounded time bar with "N min left" and a small low-contrast **Parent** button beside it. A tile
-whose exe is gone is disabled with a tooltip, never crashing the paint. Tab + Enter must work;
+**Kid screen:** warm cream background, big tiles (icon 112 px, button 212x204, a pastel tint
+picked by a hash of the tile's name so it keeps its colour across reorders), the kid pages in
+`'Segoe UI Rounded','Comic Sans MS','Segoe UI'`, a bear beside "What shall we play?", a big
+"🕒 N min left" label over a rounded time track with a marker at its leading edge, and a small
+low-contrast "🔒 **Parent**" button beside it. Glyphs live in their own labels so they stay out of
+the a11y names ("Kids Mode", "Time left", "N minutes left", "Parent"). Tile labels are
+`friendlyName()` or the parent's `shownName` (Settings → **Rename…**), wrapped onto two lines by
+`wrapName()`; the tooltip keeps the real Windows name and path. A tile whose exe is gone is
+disabled with a tooltip, never crashing the paint. Tab + Enter must work;
 visible focus ring. No badges, streaks or red.
 
 **Lock screen:** same warm palette, "Time's up!", "Ask a grown-up to unlock.", four PIN dots and
@@ -171,8 +182,10 @@ a lockout says how many minutes. The correct PIN swaps to two big buttons: *Add 
 
 **Settings:** neutral, dense, plain form. Budget spin box (5..480 min), app list with icons,
 **Add from Start Menu…** (a searchable, checkable list of the Start Menu "All apps" — desktop
-apps and Store games both; `installedApps()` in `policy.*`), Add (`*.exe`) / Remove (confirm),
-PIN + confirm in setup, blank PIN in settings keeps the old one.
+apps and Store games both; `installedApps()` in `policy.*`), Add (`*.exe`) / **Rename…** (sets
+`shownName`, pre-filled with `friendlyName()`) / Remove (confirm),
+PIN + confirm in setup, blank PIN in settings keeps the old one. The dialog keeps the plain system
+font — it is for the parent, not the child.
 One honest line: "Kids Mode is a boundary, not a lock: an administrator can always remove it."
 
 ## Layout

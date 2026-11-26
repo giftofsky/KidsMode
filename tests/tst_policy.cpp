@@ -14,6 +14,8 @@ private slots:
     void missingFileIsNotOk();
     void malformedFileIsNotOk();
     void startMenuParsing();
+    void friendlyNames();
+    void shownNameOverride();
 };
 
 void TestPolicy::roundTrip()
@@ -88,6 +90,52 @@ void TestPolicy::startMenuParsing()
     QCOMPARE(apps.at(1).exePath, QDir::toNativeSeparators(QStringLiteral("C:\\Program Files\\Paint\\mspaint.exe")));
     QVERIFY(apps.at(1).args.isEmpty());
     QCOMPARE(apps.at(2).name, QStringLiteral("Paint.NET"));
+}
+
+void TestPolicy::friendlyNames()
+{
+    QCOMPARE(friendlyName(QStringLiteral("Math Kids: Math Games For Kids")),
+             QStringLiteral("Math Kids"));
+    QCOMPARE(friendlyName(QStringLiteral("Coloring Games: Coloring Book & Painting")),
+             QStringLiteral("Coloring Games"));
+    QCOMPARE(friendlyName(QStringLiteral("Candy Swipe for Kids Free")),
+             QStringLiteral("Candy Swipe"));
+    QCOMPARE(friendlyName(QStringLiteral("Solitaire \u2013 Casual Card Games")),
+             QStringLiteral("Solitaire"));
+    QCOMPARE(friendlyName(QStringLiteral("  Wild   Spaces  here ")),
+             QStringLiteral("Wild Spaces here"));
+    // nothing to take away, and a one-word name is never eaten by the boilerplate strip
+    QCOMPARE(friendlyName(QStringLiteral("Minecraft Education Edition")),
+             QStringLiteral("Minecraft Education Edition"));
+    QCOMPARE(friendlyName(QStringLiteral("Free")), QStringLiteral("Free"));
+    // an all-lower-case name is a shortcut, not a label; anything already cased is untouched
+    QCOMPARE(friendlyName(QStringLiteral("chrome")), QStringLiteral("Chrome"));
+    QCOMPARE(friendlyName(QStringLiteral("paint net")), QStringLiteral("Paint Net"));
+    QCOMPARE(friendlyName(QStringLiteral("iPhone Games")), QStringLiteral("iPhone Games"));
+    QCOMPARE(friendlyName(QStringLiteral("Paint.NET")), QStringLiteral("Paint.NET"));
+    QVERIFY(friendlyName(QString()).isEmpty());
+}
+
+void TestPolicy::shownNameOverride()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("policy.json"));
+
+    Policy policy;
+    policy.pinHash = QByteArray(32, '\x02');
+    policy.apps = {
+        AppTile{QStringLiteral("Coloring Games: Coloring Book & Painting"),
+                QStringLiteral("C:/a.exe"), QString(), QStringLiteral("Coloring & Painting")},
+        AppTile{QStringLiteral("Math Kids: Math Games For Kids"), QStringLiteral("C:/b.exe")},
+    };
+    QVERIFY(policy.save(path));
+
+    const Policy loaded = Policy::load(path);
+    QCOMPARE(loaded.apps.size(), 2);
+    QCOMPARE(loaded.apps.at(0).label(), QStringLiteral("Coloring & Painting"));
+    QCOMPARE(loaded.apps.at(1).shownName, QString());
+    QCOMPARE(loaded.apps.at(1).label(), QStringLiteral("Math Kids"));
 }
 
 QTEST_GUILESS_MAIN(TestPolicy)
