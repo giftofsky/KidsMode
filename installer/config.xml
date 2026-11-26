@@ -2,8 +2,9 @@
 <Installer>
     <Name>Kids Mode</Name>
     <Version>1.0.0</Version>
-    <Title>Kids Mode Setup</Title>
+    <Title>Kids Mode</Title>
     <Publisher>Kids Mode</Publisher>
+    <WizardStyle>Modern</WizardStyle>
     <!-- Per-user install: the parent runs this while logged in as the child, unelevated. -->
     <TargetDir>@HomeDir@/AppData/Local/Programs/KidsMode</TargetDir>
     <StartMenuDir>Kids Mode</StartMenuDir>

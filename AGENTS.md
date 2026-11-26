@@ -226,7 +226,9 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
   `packages/com.kidsmode.app/data/` is generated — do not edit or commit it.
   `shortcut: IFW 4.10 quirks — no <AdminRequiredFor*> in config.xml (per-user target dir makes it
   moot); the component script must declare function Component() {} before overriding
-  createOperations.`
+  createOperations; <WizardStyle>Modern</WizardStyle> is required — the default wizard style paints
+  the title-bar band dark with black title text in Windows dark mode (Qt renders it, QSS cannot
+  reach it).`
 - Test the installer headless: `KidsMode-Setup.exe install com.kidsmode.app --root <dir> --am
   --confirm-command`, then `maintenancetool.exe purge --root <dir> --am --confirm-command`.
 
@@ -258,8 +260,9 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
 ## Qt Creator MCP server
 
 Qt Creator runs an MCP server at `http://127.0.0.1:52697/` (Preferences > AI > Qt Creator MCP
-Server), registered in `opencode.json`. This machine's bearer token is stored there literally; it
-is **regenerated every time Qt Creator restarts**, so a 401 means copy the new one from that page.
+Server), registered in `opencode.json`. The port is **pinned** (not Automatic) and the auth token is
+**disabled** — loopback only — so the URL is stable across Qt Creator restarts and no token needs
+copying. If it ever 401s again, someone re-enabled "Require an authentication token" there.
 Do not commit `opencode.json` to a public repository. When connected, use it for configure, build
 and test — it uses the kit Qt Creator has selected, which is the one that will actually build.
 
