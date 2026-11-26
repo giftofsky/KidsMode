@@ -162,10 +162,10 @@ that has outgrown the product; the README says so.`
 
 **Kid screen:** warm cream background, big tiles (icon 112 px, button 212x204, a pastel tint
 picked by a hash of the tile's name so it keeps its colour across reorders), the kid pages in
-`'Segoe UI Rounded','Comic Sans MS','Segoe UI'`, a bear beside "What shall we play?", a big
-"🕒 N min left" label over a rounded time track with a marker at its leading edge, and a small
+`'Segoe UI Rounded','Comic Sans MS','Segoe UI'`, a bear beside "What shall we play?", a rounded
+time bar with "N min left" centred inside it (amber under 5 minutes), and a small
 low-contrast "🔒 **Parent**" button beside it. Glyphs live in their own labels so they stay out of
-the a11y names ("Kids Mode", "Time left", "N minutes left", "Parent"). Tile labels are
+the a11y names ("Kids Mode", "N minutes left", "Parent"). Tile labels are
 `friendlyName()` or the parent's `shownName` (Settings → **Rename…**), wrapped onto two lines by
 `wrapName()`; the tooltip keeps the real Windows name and path. A tile whose exe is gone is
 disabled with a tooltip, never crashing the paint. Tab + Enter must work;

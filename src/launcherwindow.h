@@ -52,7 +52,6 @@ private:
     QStackedWidget *m_lockPages = nullptr;
     QGridLayout *m_tileGrid = nullptr;
     QProgressBar *m_timeBar = nullptr;
-    QLabel *m_timeText = nullptr;
     QLabel *m_pinDots = nullptr;
     QLabel *m_pinMessage = nullptr;
     QString m_pin;
