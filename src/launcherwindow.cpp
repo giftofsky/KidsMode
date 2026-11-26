@@ -131,7 +131,12 @@ void LauncherWindow::buildTilesPage()
     scroll->setWidget(host);
     scroll->setStyleSheet(QStringLiteral(
         "QScrollArea{background:transparent;}"
-        "QScrollArea > QWidget > QWidget{background:transparent;}"));
+        "QScrollArea > QWidget > QWidget{background:transparent;}"
+        "QScrollBar:vertical{background:transparent;width:16px;margin:4px;}"
+        "QScrollBar::handle:vertical{background:#e6dccb;border-radius:6px;min-height:60px;}"
+        "QScrollBar::handle:vertical:hover{background:#c9a227;}"
+        "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+        "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{background:transparent;}"));
     layout->addWidget(scroll, 1);
 
     auto *bar = new TimeBar(page);
