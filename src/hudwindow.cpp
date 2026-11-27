@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QScreen>
 
@@ -13,10 +14,11 @@ namespace {
 constexpr qreal kDimmed = 0.55;
 constexpr int kAwakeMs = 4000;
 
-QString labelStyle(bool low)
+QString barStyle(bool low)
 {
-    return QStringLiteral("color:%1;font-size:17px;font-weight:700;")
-        .arg(low ? QStringLiteral("#e09a2b") : QStringLiteral("#fdf6e3"));
+    return QStringLiteral("QProgressBar{border:0;border-radius:4px;background:#4a423a;}"
+                          "QProgressBar::chunk{border-radius:4px;background:%1;}")
+        .arg(low ? QStringLiteral("#e09a2b") : QStringLiteral("#6fae7c"));
 }
 
 } // namespace
@@ -28,24 +30,34 @@ HudWindow::HudWindow(QWidget *parent)
                    | Qt::WindowDoesNotAcceptFocus);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setAttribute(Qt::WA_StyledBackground, true);
-    setFixedSize(230, 44);
+    setFixedSize(300, 44);
     setStyleSheet(QStringLiteral(
         "HudWindow{background:#2f2a24;}"
+        "QLabel{color:#fdf6e3;font-size:17px;font-weight:700;}"
         "QPushButton{background:#4a423a;color:#fdf6e3;border:0;border-radius:10px;"
-        "font-size:15px;padding:0 16px;}"
+        "font-size:15px;padding:0 14px;}"
         "QPushButton:pressed{background:#5c5349;}"));
 
     // Faded, never hidden: a touchscreen has no hover, and this is the only way home. The mouse
-    // entering or a press brings it to full strength; it fades back once things have been idle.
+    // entering or a press brings it to full strength; leaving fades it at once, and the timer
+    // covers a cursor that parks on the strip and never leaves.
     m_idle.setSingleShot(true);
     m_idle.setInterval(kAwakeMs);
     connect(&m_idle, &QTimer::timeout, this, [this] { setDim(true); });
+    setDim(true);
 
     auto *layout = new QHBoxLayout(this);
     layout->setContentsMargins(14, 6, 8, 6);
+    layout->setSpacing(8);
 
     m_label = new QLabel(this);
-    m_label->setMinimumWidth(64);
+    m_label->setMinimumWidth(58);
+
+    // A child reads how much play is left from a bar running down, not from a number.
+    m_bar = new QProgressBar(this);
+    m_bar->setTextVisible(false);
+    m_bar->setFixedHeight(8);
+    m_bar->setStyleSheet(barStyle(false));
 
     auto *home = new QPushButton(tr("Home"), this);
     home->setFixedHeight(32);
@@ -53,7 +65,7 @@ HudWindow::HudWindow(QWidget *parent)
     connect(home, &QPushButton::clicked, this, &HudWindow::homeRequested);
 
     layout->addWidget(m_label);
-    layout->addStretch(1);
+    layout->addWidget(m_bar, 1);
     layout->addWidget(home);
 
     setRemaining(0, 1);
@@ -62,19 +74,22 @@ HudWindow::HudWindow(QWidget *parent)
 void HudWindow::setRemaining(int remainingSeconds, int totalSeconds)
 {
     const int total = qMax(totalSeconds, 1);
+    m_bar->setRange(0, total);
+    m_bar->setValue(qMin(remainingSeconds, total));
     m_label->setText(tr("%1 min").arg((remainingSeconds + 59) / 60));
 
     const bool low = remainingSeconds <= 300;
     if (low != m_low) {
         m_low = low;
-        m_label->setStyleSheet(labelStyle(low));
-        setDim(!low);
+        m_bar->setStyleSheet(barStyle(low));
     }
 }
 
+// One dim level for every state: the amber chunk already carries the warning, and a rule that
+// pinned "low" to full opacity left the strip solid for a whole session on a short budget.
 void HudWindow::setDim(bool dim)
 {
-    setWindowOpacity(dim && !m_low ? kDimmed : 1.0); // a warning is never faded
+    setWindowOpacity(dim ? kDimmed : 1.0);
     if (dim)
         m_idle.stop();
     else
@@ -85,6 +100,12 @@ void HudWindow::enterEvent(QEnterEvent *event)
 {
     setDim(false);
     QWidget::enterEvent(event);
+}
+
+void HudWindow::leaveEvent(QEvent *event)
+{
+    setDim(true);
+    QWidget::leaveEvent(event);
 }
 
 void HudWindow::mousePressEvent(QMouseEvent *event)

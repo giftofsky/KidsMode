@@ -176,10 +176,11 @@ a 3x4 keypad — a touchscreen with no keyboard is enough. A wrong PIN clears th
 a lockout says how many minutes. The correct PIN swaps to two big buttons: *Add 15 minutes* and
 *Quit Kids Mode*.
 
-**HUD:** 230x44 strip, bottom-centre: remaining minutes + Home, amber under 5 minutes.
-Faded to 55% opacity and woken to full by a mouse-enter or a press, fading back after 4 s idle —
-faded, never hidden: a touchscreen has no hover and this is the only way home, and the amber
-warning never fades.
+**HUD:** 300x44 strip, bottom-centre: remaining minutes, a bar running down, Home. Faded to 55%
+opacity and woken to full by mouse-enter or a press; it fades again when the mouse leaves, and a
+4 s timer covers a cursor that parks on it. Faded, never hidden — a touchscreen has no hover and
+this is the only way home. One dim level for every state: pinning the amber "low" state to full
+opacity left the strip solid for whole sessions on a 5-minute budget.
 `Qt::Tool | FramelessWindowHint | WindowStaysOnTopHint | WindowDoesNotAcceptFocus` plus
 `WA_ShowWithoutActivating`. It is the only way back from a running app, so it is not optional.
 
@@ -275,7 +276,7 @@ E:\Qt\6.11.0\msvc2022_64\bin\windeployqt.exe build\Release\KidsMode.exe
   delete it before the next start.
 - The HUD is invisible to accessibility tools (`Qt::Tool`, no focus), so UI automation cannot
   click it; post `WM_LBUTTONDOWN/UP` to the `QWindowTool*` window instead (Home is at the right
-  end of the 230 px strip, and a `WM_MOUSEMOVE` is what wakes it from 55% opacity).
+  end of the 300 px strip, and a `WM_MOUSEMOVE` is what wakes it from 55% opacity).
 
 ## Qt Creator MCP server
 
