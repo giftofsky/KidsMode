@@ -42,28 +42,16 @@ const QString kKidFontFamily =
 const QString kBear = QStringLiteral("\U0001F9F8");
 const QString kLock = QStringLiteral("\U0001F510");
 
-// Calm pastel card tints, chosen by a hash of the app name so a tile keeps its colour when the
-// list reorders. Deliberately low saturation: the screen stays cream, not candy.
-QString tileTint(const QString &name)
+// One card colour for every tile. A hash-picked pastel read as an accident - two pinks side by
+// side, then two mints - and the icons are already the colour on this screen.
+QString tileStyle()
 {
-    static const char *const tints[] = {"#fde7ec", "#e6f0fb", "#e8f4e6", "#fdf3d9", "#efe8f8"};
-    quint32 hash = 2166136261u;
-    for (const QChar c : name) {
-        hash ^= c.unicode();
-        hash *= 16777619u;
-    }
-    return QString::fromLatin1(tints[hash % (sizeof(tints) / sizeof(*tints))]);
-}
-
-QString tileStyle(const QString &tint)
-{
-    return QStringLiteral("QToolButton{background:%1;border:2px solid #e6dccb;border-radius:20px;"
-                          "padding:10px;font-size:16px;font-weight:600;color:#4a3f35;}"
+    return QStringLiteral("QToolButton{background:#fffaf0;border:2px solid #e6dccb;border-radius:18px;"
+                          "padding:12px;font-size:16px;font-weight:600;color:#4a3f35;}"
                           "QToolButton:hover{border-color:#c9a227;}"
                           "QToolButton:pressed{background:#f3ead9;}"
                           "QToolButton:focus{border:3px solid #c9a227;}"
-                          "QToolButton:disabled{color:#a99f92;background:#f3eee4;}")
-        .arg(tint);
+                          "QToolButton:disabled{color:#a99f92;background:#f3eee4;}");
 }
 
 // QToolButton cannot word-wrap: it elides mid-word ("Coloring G..."). Break a long name onto a
@@ -380,7 +368,7 @@ void LauncherWindow::setApps(const QList<AppTile> &apps)
         button->setEnabled(exists);
         button->setToolTip(exists ? tr("%1\n%2").arg(tile.name, tile.exePath)
                                   : tr("%1 is missing").arg(tile.exePath));
-        button->setStyleSheet(tileStyle(tileTint(tile.name)));
+        button->setStyleSheet(tileStyle());
         connect(button, &QToolButton::clicked, this, [this, tile] { emit appRequested(tile); });
 
         m_tileGrid->addWidget(button, index / 4, index % 4, Qt::AlignCenter);

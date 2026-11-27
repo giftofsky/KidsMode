@@ -60,7 +60,9 @@ or shell replacement. Say the same sentence in the README and the settings dialo
 - child `finished()` → `Launcher` (which locks instead if the budget just ran out).
 - HUD Home → confirm, stop the child → `Launcher`.
 - exhausted → stop the child → save → `Locked`.
-- `Locked` + correct PIN → parent choices → add 15 min (`Launcher`) or quit.
+- `Locked` + correct PIN → parent choices → add 15 min or quit. The top-up relaunches the app
+  that was running when the time ran out (`m_childInterrupted` / `m_childTile`), so the kid is not
+  sent back to the grid; if the exe is gone it just lands in `Launcher`.
 - `Launcher`: the **Parent** button, or a 2 s press on the time bar → PIN → Settings… / Quit / Cancel.
 
 Rules:
@@ -160,8 +162,9 @@ that has outgrown the product; the README says so.`
 
 ## UI
 
-**Kid screen:** warm cream background, big tiles (icon 112 px, button 212x204, a pastel tint
-picked by a hash of the tile's name so it keeps its colour across reorders), the kid pages in
+**Kid screen:** warm cream background, big tiles (icon 112 px, button 212x204, all one cream card
+colour `#fffaf0` — a per-name pastel tint was tried and read as random: two pinks in a row, then
+two mints; the icons are the colour on this screen), the kid pages in
 `'Segoe UI Rounded','Comic Sans MS','Segoe UI'`, a bear beside "What shall we play?", a rounded
 time bar with "N min left" centred inside it (amber under 5 minutes), and a small
 low-contrast "🔒 **Parent**" button beside it. Glyphs live in their own labels so they stay out of

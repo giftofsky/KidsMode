@@ -319,6 +319,12 @@ void SessionController::enterLauncher()
 
 void SessionController::enterLocked()
 {
+    // The child was playing when the time ran out, so remember what: "+15 minutes" hands the
+    // same app back instead of sending them hunting for the tile again.
+    m_childInterrupted = m_state == State::AppRunning;
+    if (m_childInterrupted)
+        qCInfo(kidsmode) << "time ran out while running" << m_childTile.name;
+
     m_state = State::Locked;
     m_timer->setRunning(false);
     stopChild();
@@ -362,6 +368,7 @@ void SessionController::requestApp(const AppTile &tile)
         }
     }
 
+    m_childTile = tile;
     m_state = State::AppRunning;
     m_hud->setRemaining(m_timer->remainingSeconds(), totalBudget());
     m_launcher->setAssertFocus(false);
@@ -718,6 +725,15 @@ void SessionController::addTime()
     m_timer->setBudgetSeconds(totalBudget());
     save();
     enterLauncher();
+
+    // They asked for more time for the app that just ran out, so it comes back by itself.
+    if (m_childInterrupted) {
+        m_childInterrupted = false;
+        if (QFileInfo::exists(m_childTile.exePath)) {
+            qCInfo(kidsmode) << "relaunching after +15 min" << m_childTile.name;
+            requestApp(m_childTile);
+        }
+    }
 }
 
 void SessionController::showSettings()
