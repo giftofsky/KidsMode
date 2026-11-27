@@ -319,18 +319,20 @@ void SessionController::enterLauncher()
 
 void SessionController::enterLocked()
 {
-    // The child was playing when the time ran out, so remember what: "+15 minutes" hands the
-    // same app back instead of sending them hunting for the tile again.
-    m_childInterrupted = m_state == State::AppRunning;
-    if (m_childInterrupted)
-        qCInfo(kidsmode) << "time ran out while running" << m_childTile.name;
+    // The kid may be mid-game. Hide the app rather than kill it: "+15 minutes" then continues the
+    // same session, where a relaunch would have thrown the progress away.
+    const bool kept = m_state == State::AppRunning && suspendChild();
 
     m_state = State::Locked;
     m_timer->setRunning(false);
-    stopChild();
-    m_childWindow = 0;
-    m_windowPid = 0;
-    m_adoptedWindow = false;
+    if (kept) {
+        qCInfo(kidsmode) << "time ran out, child hidden and kept";
+    } else {
+        stopChild();
+        m_childWindow = 0;
+        m_windowPid = 0;
+        m_adoptedWindow = false;
+    }
     save();
 
     m_hud->hide();
@@ -368,7 +370,6 @@ void SessionController::requestApp(const AppTile &tile)
         }
     }
 
-    m_childTile = tile;
     m_state = State::AppRunning;
     m_hud->setRemaining(m_timer->remainingSeconds(), totalBudget());
     m_launcher->setAssertFocus(false);
@@ -462,6 +463,7 @@ void SessionController::onChildError(QProcess::ProcessError error)
 void SessionController::stopChild()
 {
     m_windowPoll.stop();
+    m_suspended = false;
 
     if (m_adoptedWindow) {
         auto *window = reinterpret_cast<HWND>(m_childWindow);
@@ -620,6 +622,10 @@ void SessionController::enforceLauncherOnScreen()
     if (QApplication::activeModalWidget())
         return;
 
+    // A game can re-show itself (or open a dialog) while it is supposed to be suspended.
+    if (m_suspended && m_childWindow && IsWindowVisible(reinterpret_cast<HWND>(m_childWindow)))
+        ShowWindow(reinterpret_cast<HWND>(m_childWindow), SW_HIDE);
+
     if (m_launcher->isMinimized())
         m_launcher->showFullScreen(); // Win+D, "Show desktop"
     m_launcher->setTopmost(true); // raises it, and re-asserts the style Qt no longer holds for us
@@ -669,6 +675,42 @@ bool SessionController::adoptLaunchedWindow()
     qCInfo(kidsmode) << "adopted window" << m_childWindow << "of pid" << pid;
     bringChildToFront();
     return true;
+}
+
+// Hide the app instead of killing it, so "+15 minutes" continues the same session: a relaunched
+// game starts over and the kid loses whatever they were building.
+bool SessionController::suspendChild()
+{
+    HWND window = reinterpret_cast<HWND>(m_childWindow);
+    if (!window || !IsWindow(window))
+        return false;
+
+    ShowWindow(window, SW_HIDE);
+    // A DirectX exclusive-fullscreen window can survive SW_HIDE and would sit over the lock
+    // screen; there the old kill is the only safe answer.
+    if (IsWindowVisible(window))
+        return false;
+
+    m_suspended = true;
+    return true;
+}
+
+void SessionController::resumeChild()
+{
+    m_suspended = false;
+    m_state = State::AppRunning;
+    m_launcher->setAssertFocus(false);
+    m_launcher->showShield();
+    m_launcher->setTopmost(false);
+    m_launcher->showFullScreen();
+    shieldAsDesktop();
+    ShowWindow(reinterpret_cast<HWND>(m_childWindow), SW_SHOW);
+    m_hud->show();
+    m_timer->setRunning(true);
+    updateHud();
+    bringChildToFront();
+    save();
+    qCInfo(kidsmode) << "child resumed after +15 min";
 }
 
 void SessionController::goHome()
@@ -724,16 +766,17 @@ void SessionController::addTime()
     m_usage.bonusSeconds += 15 * 60;
     m_timer->setBudgetSeconds(totalBudget());
     save();
-    enterLauncher();
 
-    // They asked for more time for the app that just ran out, so it comes back by itself.
-    if (m_childInterrupted) {
-        m_childInterrupted = false;
-        if (QFileInfo::exists(m_childTile.exePath)) {
-            qCInfo(kidsmode) << "relaunching after +15 min" << m_childTile.name;
-            requestApp(m_childTile);
-        }
+    if (!m_suspended) {
+        enterLauncher();
+        return;
     }
+    if (m_childWindow && IsWindow(reinterpret_cast<HWND>(m_childWindow))) {
+        resumeChild();
+        return;
+    }
+    stopChild(); // it died while hidden, so there is nothing to hand back
+    enterLauncher();
 }
 
 void SessionController::showSettings()

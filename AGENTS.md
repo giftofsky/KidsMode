@@ -20,7 +20,8 @@ or shell replacement. Say the same sentence in the README and the settings dialo
   (`calc.exe`, Windows 11's `notepad.exe`) is followed to the window it opens, see Process handling.
 - Counts seconds only while the launcher or the child app is on screen, against a daily budget.
   The count is saved, so a restart or reboot does not refill the day.
-- At zero: terminate the child (5 s grace), kill it, save, then show the lock screen.
+- At zero: hide the child (it stays alive, so nothing is lost), save, then show the lock screen.
+  **+15 minutes** shows the same session again; **Quit Kids Mode** kills it.
 - While an app runs the launcher stays behind it as a blank cream backdrop, so the desktop is
   never visible around a small window.
 - Lock screen: "Time's up!", a 4-dot PIN display and a 3x4 keypad. Correct PIN → two buttons:
@@ -59,10 +60,10 @@ or shell replacement. Say the same sentence in the README and the settings dialo
 - `Launcher` + tile → clear topmost, show the blank cream shield page, *then* start the process.
 - child `finished()` → `Launcher` (which locks instead if the budget just ran out).
 - HUD Home → confirm, stop the child → `Launcher`.
-- exhausted → stop the child → save → `Locked`.
-- `Locked` + correct PIN → parent choices → add 15 min or quit. The top-up relaunches the app
-  that was running when the time ran out (`m_childInterrupted` / `m_childTile`), so the kid is not
-  sent back to the grid; if the exe is gone it just lands in `Launcher`.
+- exhausted → hide the child (`suspendChild()`), save → `Locked`.
+- `Locked` + correct PIN → parent choices → add 15 min or quit. The top-up shows the suspended
+  app again (`resumeChild()`, same process, same progress) and puts the timer back in `AppRunning`;
+  if that app died while hidden it lands in `Launcher` instead. Quit kills it via `aboutToQuit`.
 - `Launcher`: the **Parent** button, or a 2 s press on the time bar → PIN → Settings… / Quit / Cancel.
 
 Rules:
@@ -98,7 +99,10 @@ Rules:
 - **Store apps**: adopt the `ApplicationFrameWindow` frame (owned by ApplicationFrameHost), not the
   app's own content window — that frame is what the child sees, what stays on top and what
   `WM_CLOSE` closes.
-- **Kill the child before showing the lock screen** — exclusive-fullscreen apps stay above us.
+- **Hide the child before showing the lock screen** — `ShowWindow(SW_HIDE)`, not a kill: an
+  exclusive-fullscreen window can survive `SW_HIDE`, so `suspendChild()` falls back to the old
+  kill when the window is still visible afterwards. While `Locked`, the 1 s guard re-hides the
+  window if the app shows itself again.
 - Re-assert focus only in `Launcher`/`Locked` on `WindowDeactivate`: `raise()` +
   `activateWindow()` after a 200 ms single-shot. Never while an app runs.
 - A 1 s guard (`enforceZOrder` → `enforceChildOnTop` in `AppRunning`) puts the app back in front

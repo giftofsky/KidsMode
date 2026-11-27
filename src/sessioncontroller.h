@@ -36,6 +36,8 @@ private:
     void onTick();
     void onPinSubmitted(const QString &pin);
     void addTime();
+    bool suspendChild();
+    void resumeChild();
     void save();
     void updateHud();
     int totalBudget() const;
@@ -66,7 +68,6 @@ private:
     int m_windowTries = 0;
     Policy m_policy;
     UsageState m_usage;
-    AppTile m_childTile;               // the app launched last, kept so "+15 minutes" can hand it back
-    bool m_childInterrupted = false;   // the budget ran out while that app was on screen
+    bool m_suspended = false; // the app was hidden, not killed, when the time ran out
     State m_state = State::Launcher;
 };
